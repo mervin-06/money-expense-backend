@@ -1,0 +1,18 @@
+// 1st first install => npm i init
+// 2nd  install => npm i express
+// 3rd npm i mongoose
+// 4th npm i dotenv in this file create{
+//     PORT = 8000      this is for port 
+//     MONGO_URL = "mongodb://localhost:27017/database_name"    #this is for mongodb://whichlocalhost//database_name
+// }
+
+// 5th  npm install--save - dev nodemon
+// edit the package.json{
+//     "type": "module",
+//         main: "index.js || server.js "
+//     "scripts": {
+//         "start": "nodemon index.js || nodemon server.js"
+//     },
+// }
+
+// then run npm start 

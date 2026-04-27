@@ -117,7 +117,7 @@ export const getUserByEmail = async (req, res) => {
             return res.status(404).json({ message: "user Cant Exist" });
         }
         
-        res.json({ name: user.name, email: user.email, password: user.password });
+        res.json({ name: user.name, email: user.email, salary: user.salary });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -157,9 +157,11 @@ export const updatePassword = async (req, res) => {
             return res.status(404).send({ message: "user not found" });
         }
         
-        if (currpassword === user.password) {
-            user.oldpassword = currpassword;
-            user.password = Newpassword;
+        const isMatch = await bcrypt.compare(currpassword, user.password);
+        if (isMatch) {
+            const hashedPass = await bcrypt.hash(Newpassword, 10);
+            user.oldpassword = user.password;
+            user.password = hashedPass;
             await user.save();
             return res.json({ message: "updated successfully" });
         }

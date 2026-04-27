@@ -9,12 +9,10 @@ const app = express();
 dotenv.config();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-
 app.use(cors({
   origin: "*"
 }));
+app.use(express.json());
 
 // Routes
 app.use("/users", userRoutes);

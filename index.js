@@ -20,9 +20,9 @@ app.use("/users/expense", expenseRoutes);
 
 // Connect to database and start server
 const PORT = process.env.PORT;
-
 connectDB().then(() => {
     app.listen(PORT, () => {
-        console.log(`server running on port http://localhost:${PORT}/users`);
+        console.log(`Server running on port ${PORT}`);
+        
     });
 });

@@ -12,9 +12,11 @@ export const connectDB = async () => {
             serverSelectionTimeoutMS: 5000,
             connectTimeoutMS: 10000
         });
+        console.log("MONGO_URL:", process.env.MONGO_URL);
         console.log("DB Connected successfully");
     } catch (error) {
         console.error("Database connection error:", error.message);
+        console.log(MONGO_URI);
         process.exit(1);
     }
 };

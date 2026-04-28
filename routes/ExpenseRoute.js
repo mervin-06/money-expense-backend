@@ -11,6 +11,6 @@ const router = express.Router();
 // All expense routes require authentication
 router.get("/", verifyToken, getUserExpenses);
 router.post("/", verifyToken, addExpense);
-router.get("/history", verifyToken, getExpenseHistory);
+router.get("/users/history", verifyToken, getExpenseHistory);
 
 export default router;

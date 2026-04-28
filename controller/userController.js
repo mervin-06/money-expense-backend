@@ -29,22 +29,22 @@ export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await usermodel.findOne({ email });
-        
+
         if (!user) {
             return res.status(401).json({ message: "User Not Exist" });
         }
-        
+
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: "Wrong password" });
         }
-        
+
         const token = jwt.sign(
             { userId: user._id, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
-        
+
         return res.json({
             message: "Welcome Admin",
             token,
@@ -65,13 +65,13 @@ export const registerUser = async (req, res) => {
         const hashedPass = await bcrypt.hash(password, 10);
 
         const userExisting = await usermodel.findOne({ email });
-        
+
         if (userExisting) {
-            return res.status(401).send({ message: "Email is Already registered!" });
+            return res.status(400).json({ message: "Email is already registered!" });
         }
 
         const role = email === process.env.ADMIN_EMAIL ? "admin" : "user";
-        
+
         const user = new usermodel({
             name,
             email,
@@ -99,8 +99,10 @@ Thank you for joining us!
             subject: "Email For SignUp OurSite",
             text: msgforSignup,
         });
-
-        res.json(savedUser);
+        res.status(201).json({
+            message: "Account created successfully",
+            user: savedUser
+        });
 
     } catch (error) {
         res.status(500).send({ message: error.message });
@@ -112,11 +114,11 @@ export const getUserByEmail = async (req, res) => {
     try {
         const email = req.params.email;
         const user = await usermodel.findOne({ email });
-        
+
         if (!user) {
             return res.status(404).json({ message: "user Cant Exist" });
         }
-        
+
         res.json({ name: user.name, email: user.email, salary: user.salary });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -151,12 +153,12 @@ export const updatePassword = async (req, res) => {
     try {
         const { currpassword, Newpassword } = req.body;
         const email = req.params.email;
-        
+
         const user = await usermodel.findOne({ email });
         if (!user) {
             return res.status(404).send({ message: "user not found" });
         }
-        
+
         const isMatch = await bcrypt.compare(currpassword, user.password);
         if (isMatch) {
             const hashedPass = await bcrypt.hash(Newpassword, 10);
@@ -165,7 +167,7 @@ export const updatePassword = async (req, res) => {
             await user.save();
             return res.json({ message: "updated successfully" });
         }
-        
+
         res.status(500).send({ message: "Currrent password is Wrong" });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -177,15 +179,15 @@ export const sendOTP = async (req, res) => {
     try {
         const { email } = req.body;
         const user = await usermodel.findOne({ email });
-        
+
         if (!user) {
             return res.status(404).json({ message: "user Cant Exist" });
         }
-        
+
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         user.otp = otp;
         user.otpExpiry = Date.now() + 5 * 60 * 1000;
-        
+
         const messageForEmail = `Money Expense – Security Alert
 
 Your One-Time Password (OTP) is strictly confidential. Do not share it with anyone.
@@ -195,9 +197,9 @@ This OTP is valid for a limited time and is used to securely verify your identit
 If you did not request this OTP, please ignore this message or contact Money Expense support immediately.      
                                 Your OTP Is ${otp}
                                 `;
-        
+
         await user.save();
-        
+
         const transporter = createTransporter();
 
         await transporter.sendMail({
@@ -206,7 +208,7 @@ If you did not request this OTP, please ignore this message or contact Money Exp
             subject: "OTP for Reset Password",
             text: messageForEmail
         });
-        
+
         res.json({ message: "OTP sent successfully" });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
@@ -218,20 +220,20 @@ export const verifyOTP = async (req, res) => {
     try {
         const email = req.params.email;
         const { otp } = req.body;
-        
+
         const user = await usermodel.findOne({ email });
         if (!user) {
             return res.status(404).json({ message: "user Cant Exist" });
         }
-        
+
         if (otp !== user.otp) {
             return res.status(400).json({ message: "Wrong OTP" });
         }
-        
+
         if (user.otpExpiry < Date.now()) {
             return res.status(400).json({ message: "OTP has expired" });
         }
-        
+
         res.json({ message: "Corrct Otp" });
     } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -243,18 +245,18 @@ export const resetPassword = async (req, res) => {
     try {
         const email = req.params.email;
         const { password } = req.body;
-        
+
         const hashedPass = await bcrypt.hash(password, 10);
         const user = await usermodel.findOne({ email });
-        
+
         if (!user) {
             return res.status(404).json({ message: "Cant Find User" });
         }
-        
+
         user.oldpassword = user.password;
         user.password = hashedPass;
         await user.save();
-        
+
         return res.json({ message: "Password Updated Sucessfully" });
     } catch (error) {
         return res.status(500).json({ message: error.message });

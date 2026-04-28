@@ -59,19 +59,35 @@ export const loginUser = async (req, res) => {
 
 // User Registration/Signup
 export const registerUser = async (req, res) => {
+    console.log("[1/5] POST /users - Starting signup process...");
+    
     try {
         const { name, email, password } = req.body;
+        console.log(`[2/5] Input validation: name="${name}", email="${email}"`);
 
+        // Validate required fields
+        if (!name || !email || !password) {
+            console.warn("[!] Missing required fields");
+            return res.status(400).json({ message: "Name, email, and password are required" });
+        }
+
+        // Hash password
+        console.log("[3/5] Hashing password...");
         const hashedPass = await bcrypt.hash(password, 10);
 
+        // Check if email already exists
+        console.log("[4/5] Checking if email exists in database...");
         const userExisting = await usermodel.findOne({ email });
-
         if (userExisting) {
+            console.warn(`[!] Email already registered: ${email}`);
             return res.status(400).json({ message: "Email is already registered!" });
         }
 
+        // Determine role
         const role = email === process.env.ADMIN_EMAIL ? "admin" : "user";
 
+        // Create and save user
+        console.log("[5/5] Creating user in database...");
         const user = new usermodel({
             name,
             email,
@@ -80,8 +96,47 @@ export const registerUser = async (req, res) => {
         });
 
         const savedUser = await user.save();
+        console.log(`✓ User created: ${savedUser._id}`);
 
-        const msgforSignup = `Hello,
+        // Send welcome email (non-blocking - don't wait for it)
+        console.log("[EMAIL] Sending welcome email (async, won't block response)...");
+        sendWelcomeEmail(email, name).catch(err => {
+            console.error("[EMAIL_ERROR] Failed to send email:", err.message);
+            // Don't crash - email is not critical for signup success
+        });
+
+        // Send immediate success response - DON'T wait for email
+        console.log("[SUCCESS] Sending 201 response to frontend");
+        res.status(201).json({
+            message: "Account created successfully",
+            user: {
+                _id: savedUser._id,
+                name: savedUser.name,
+                email: savedUser.email,
+                role: savedUser.role
+            }
+        });
+
+    } catch (error) {
+        console.error("[ERROR] Signup failed:", {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+
+        // Ensure we always send a response, even on error
+        if (!res.headersSent) {
+            res.status(500).json({ 
+                message: "Signup failed. Please try again.",
+                error: error.message 
+            });
+        }
+    }
+};
+
+// Helper: Send welcome email asynchronously (doesn't block signup response)
+const sendWelcomeEmail = async (email, name) => {
+    const msgforSignup = `Hello ${name},
 
 Your account has been created successfully in our Expense Tracker platform.
 You can now manage your daily expenses, track your spending, and monitor your financial habits easily.
@@ -91,22 +146,22 @@ Log in to your account and start recording your expenses today.
 Thank you for joining us!
 `;
 
-        const transporter = createTransporter();
+    const transporter = createTransporter();
 
-        await transporter.sendMail({
-            from: process.env.OFFICIAL_EMAIL,
-            to: email,
-            subject: "Email For SignUp OurSite",
-            text: msgforSignup,
-        });
-        res.status(201).json({
-            message: "Account created successfully",
-            user: savedUser
-        });
+    // Add timeout to prevent hanging
+    const emailPromise = transporter.sendMail({
+        from: process.env.OFFICIAL_EMAIL,
+        to: email,
+        subject: "Welcome to Expense Tracker!",
+        text: msgforSignup,
+    });
 
-    } catch (error) {
-        res.status(500).send({ message: error.message });
-    }
+    // Wrap in timeout - fail if email takes >10 seconds
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Email timeout after 10s")), 10000)
+    );
+
+    await Promise.race([emailPromise, timeoutPromise]);
 };
 
 // Get user by email
